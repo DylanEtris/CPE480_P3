@@ -1,0 +1,676 @@
+;Assembly
+;jr $a
+    ci8 $r1, 6
+    jr $r1
+    trap
+    trap
+    trap
+    trap
+    bnz $r1, t1
+    trap
+    trap
+    
+
+;addi $d, $s
+t1:
+    ci8 $r1, 6
+    ci8 $r2, -6
+    addi $r1, $r2
+    bz $r1, t2
+    trap
+
+
+;addii $d, $s
+t2:
+    cii $r1, 0xff
+    cii $r2, -0xff
+    addii $r1, $r2
+    bz $r1, t3
+    trap
+
+
+;addp $d, $s
+t1p:
+    ci8 $r1, 6
+    ci8 $r2, -6
+    addp $r1, $r2        ; same effect as addi in current implementation
+    bz $r1, t2p
+    trap
+
+;addpp $d, $s
+t2p:
+    cii $r1, 0xff
+    cii $r2, -0xff
+    addpp $r1, $r2        ; same effect as addii in current implementation
+    bz $r1, t3p
+    trap
+
+;and $d, $s
+t3:
+    ci8 $r1, 7
+    ci8 $r2, 3
+    and $r1, $r2
+    ci8 $r0, -3
+    addi $r1, $r0
+    bz $r1, t4
+    trap
+
+
+;anyi $d
+t4:
+    ci8 $r1, 1
+    ci $r2, -0xffff
+    anyi $r1
+    addi $r1, $r2
+    bz $r1, t5
+    trap
+t5:
+    ci8 $r1, 0
+    ci $r2, 0
+    anyi $r1
+    addi $r1, $r2
+    bz $r1, t6
+    trap
+
+    
+;anyii $d
+t6:
+    cii $r1, 1
+    cup $r1, 0
+    ci $r2, -0x00ff
+    anyii $r1
+    addi $r1, $r2
+    bz $r1, t7
+    trap
+
+
+;bnz $c, addr
+t7:
+    ci8 $r1, 1
+    bnz $r1, t8
+    trap
+
+
+;bz $c, addr
+t8:
+    ci8 $r1, 0
+    bz $r1, t9
+    trap
+
+
+;ci $d, c16
+t9:
+    ci $r1, 1
+    ci8 $r2, -1
+    addi $r1, $r2
+    bz $r1, t10
+    trap
+    
+t10:
+    ci $r1, -0x0101
+    cii $r2, 0x01
+    addi $r1, $r2
+    bz $r1, t11
+    trap
+    
+t11:
+    ci $r1, 0x1234
+    cii $r2, 0x34
+    cup $r2, 0x12
+    addi $r1, $r2
+    bz $r1, t12
+
+
+;ci8 $d, c8
+
+
+;cii $d, c8
+
+
+;cup $d, c8
+
+
+;invp $d
+t3p:
+    ci8 $r1, 1
+    invp $r1        ; this sets the value to 0 in our current implementation
+    bz $r1, t4p
+    trap
+
+
+;invpp $d
+t4p:
+    cii $r1, 0x11
+    invpp $r1        ; this sets the value to 0 in our current implementation
+    bz $r1, t5p
+    trap
+
+
+;jmp addr
+t12:
+    ci8 $sp, 1
+    jmp t13
+    trap
+    trap
+    trap
+
+
+;jnz $d, addr
+t13:
+    ci8 $r1, 1
+    jnz $r1, t14
+    trap
+
+
+;jz $d, addr
+t14:
+    ci8 $r1, 0
+    jz $r1, t15
+    trap
+
+
+;muli $d, $s
+t15:
+    ci8 $r1, 3
+    ci8 $r2, 3
+    ci8 $r3, -9
+    muli $r1, $r2
+    addi $r1, $r3
+    bz $r1, t16
+    trap
+
+
+;mulii $d, $s
+t16:
+    cii $r1, 3
+    cii $r2, 3
+    cii $r3, -0x09
+    mulii $r1, $r2
+    addii $r1, $r3
+    bz $r1, t17
+    trap
+
+
+;mulp $d, $s
+t5p:
+    ci8 $r1, 3
+    ci8 $r2, 3
+    ci8 $r3, -9
+    mulp $r1, $r2        ; same effect as muli in current implementation
+    addp $r1, $r3
+    bz $r1, t6p
+    trap
+
+
+;mulpp $d, $s
+t6p:
+    cii $r1, 3
+    cii $r2, 3
+    cii $r3, -0x09
+    mulpp $r1, $r2        ; same effect as mulii in current implementation
+    addpp $r1, $r3
+    bz $r1, t7p
+    trap
+
+    
+;i2p $d
+t7p:
+    ci8 $r1, 3
+    ci8 $r2, -3
+    i2p $r1
+    addp $r1, $r2
+    bz $r1, t8p
+    trap
+
+
+;ii2pp $d
+t8p:
+    cii $r1, 3
+    cii $r2, -3
+    ii2pp $r1
+    addpp $r1, $r2
+    bz $r1, t9p
+    trap
+
+
+;negi $d
+t17:
+    ci8 $r1, 7
+    ci8 $r2, 7
+    negi $r1
+    addi $r1, $r2
+    bz $r1, t18
+    trap
+
+
+;negii $d
+t18:
+    cii $r1, 7
+    cii $r2, 7
+    negii $r1
+    addii $r1, $r2
+    bz $r1, t19
+    trap
+
+
+;not $d
+t19:
+    ci $r1, 0xf0f0
+    ci $r2, -0x0f0f
+    not $r1
+    addi $r1, $r2
+    bz $r1, t20
+    trap
+
+
+;or $d, $s
+t20:
+    ci8 $r1, 0x01
+    ci8 $r2, 0x02
+    ci8 $r3, -0x03
+    or $r1, $r2
+    addi $r1, $r3
+    bz $r1, t21
+    trap
+
+
+;p2i $d
+t9p:
+    ci8 $r1, 3
+    ci8 $r2, -3
+    p2i $r1
+    addi $r1, $r2
+    bz $r1, t10p
+    trap
+
+
+;pp2ii $d
+t10p:
+    cii $r1, 3
+    cii $r2, -3
+    pp2ii $r1
+    addii $r1, $r2
+    bz $r1, lasttest
+    trap
+
+
+;shi $d, $s
+t21:
+    ci8 $r1, 1
+    ci8 $r2, -4
+    ci8 $r3, 2
+    shi $r1, $r3
+    addi $r1, $r2
+    bz $r1, t22
+    trap
+t22:
+    ci8 $r1, 4
+    ci8 $r2, -1
+    ci8 $r3, -2
+    shi $r1, $r3
+    addi $r1, $r2
+    bz $r1, t23
+    trap
+
+
+;shii $d, $s
+t23:
+    cii $r1, 1
+    cii $r2, -4
+    cii $r3, 2
+    shii $r1, $r3
+    addii $r1, $r2
+    bz $r1, t24
+    trap
+t24:
+    cii $r1, 4
+    cii $r2, -1
+    cii $r3, -2
+    shii $r1, $r3
+    addii $r1, $r2
+    bz $r1, t25
+    trap
+
+
+;slti $d, $s
+t25:
+    ci8 $r1, 0
+    ci8 $r2, 1
+    slti $r1, $r2
+    bnz $r1, t26
+    trap
+t26:
+    ci8 $r1, 1
+    ci8 $r2, 0
+    slti $r1, $r2
+    bz $r1, t27
+    trap
+
+
+;sltii $d, $s
+t27:
+    cii $r1, 0
+    cii $r2, 1
+    sltii $r1, $r2
+    negii $r2
+    addii $r1, $r2
+    bz $r1, t28
+    trap
+t28:
+    cii $r1, 1
+    cii $r2, 0
+    sltii $r1, $r2
+    bz $r1, t29
+    trap
+
+
+;trap
+
+
+;xor $d, $s
+t29:
+    ci $r1, 0x1111
+    ci $r2, 0x3333
+    ci $r3, -0x2222
+    xor $r1, $r2
+    addi $r1, $r3
+    bz $r1, t30
+    trap
+
+
+;ld $d, $s
+t30:
+    ci8 $r2, 0
+    ci $r3, -0x7777        ; with value 7777 in VMEM1
+    ld $r1, $r2
+    addi $r1, $r3
+    bz $r1, t31
+    trap
+
+    
+;st $d, $s
+t31:
+    ci8 $r1, 0x7654
+    ci8 $r2, 1
+    st $r1, $r2
+    ld $r3, $r2
+    negi $r1
+    addi $r1, $r3
+    bz $r1, t1p
+    trap
+
+
+lasttest:
+    cii $r0, 0x42
+    trap
+
+
+
+
+
+b061
+0101
+0000
+0000
+0000
+0000
+f031
+0000
+0000
+b061
+bfa2
+7021
+e021
+0000
+cff1
+c012
+7121
+e0c1
+0000
+b061
+bfa2
+6021
+e021
+0000
+cff1
+c012
+6121
+e351
+0000
+b071
+b032
+5021
+bfd0
+7001
+e021
+0000
+b011
+c012
+d002
+3001
+7021
+e021
+0000
+b001
+b002
+3001
+7021
+e021
+0000
+c011
+d001
+c012
+dff2
+3101
+7021
+e021
+0000
+b011
+f021
+0000
+b001
+e021
+0000
+b011
+bff2
+7021
+e021
+0000
+cff1
+dfe1
+c012
+7021
+e021
+0000
+c341
+d121
+c342
+d122
+7021
+e091
+b011
+2401
+e021
+0000
+c111
+2501
+e1b1
+0000
+b01f
+f04f
+0000
+0000
+0000
+b011
+f021
+0000
+b001
+e021
+0000
+b031
+b032
+bf73
+7221
+7031
+e021
+0000
+c031
+c032
+cf73
+7321
+7131
+e1c1
+0000
+b031
+b032
+bf73
+6221
+6031
+e021
+0000
+c031
+c032
+cf73
+6321
+6131
+e021
+0000
+b031
+bfd2
+2001
+6021
+e021
+0000
+c031
+cfd2
+2101
+6121
+e1c1
+0000
+b071
+b072
+3201
+7021
+e021
+0000
+c071
+c072
+3301
+7121
+e021
+0000
+cf01
+cf12
+df02
+1001
+7021
+e021
+0000
+b011
+b022
+bfd3
+5121
+7031
+e0e1
+0000
+b031
+bfd2
+2201
+7021
+e021
+0000
+c031
+cfd2
+2301
+7121
+e4b1
+0000
+b011
+bfc2
+b023
+7431
+7021
+e021
+0000
+b041
+bff2
+bfe3
+7431
+7021
+e021
+0000
+c011
+cfc2
+c023
+7531
+7121
+e021
+0000
+c041
+cff2
+cfe3
+7531
+7121
+e021
+0000
+b001
+b012
+7621
+f021
+0000
+b011
+b002
+7621
+e021
+0000
+c001
+c012
+7721
+3302
+7121
+e021
+0000
+c011
+c002
+7721
+e021
+0000
+c111
+c332
+cde3
+ddd3
+5221
+7031
+e021
+0000
+b002
+c893
+d883
+4021
+7031
+e021
+0000
+b541
+b012
+4121
+4023
+3201
+7031
+e1b1
+0000
+c420
+0000
+
+
+
+
+
+
+
+
+
+b03b
+010b
+a000
+0000
+
