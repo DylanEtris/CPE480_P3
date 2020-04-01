@@ -77,7 +77,7 @@ module processor(halted, reset, clk);
     end
 
     always@(posedge clk) begin
-        $display("PC: %h, Instruction: %h, Time: %d\n",PC, inst, $time);
+        /*$display("PC: %h, Instruction: %h, Time: %d\n",PC, inst, $time);
         PC <= PC + 1;
         casez (inst `TOPOP)
         {1'b0,{3{1'bz}} } :
@@ -105,13 +105,14 @@ module processor(halted, reset, clk);
         default : begin
                 $display("Invalid Instruction: %h\n",inst `OPCODE);
                 halted = 1; end
-        endcase
+        endcase*/
     end
     
+    reg `WORD d1, s1, dv1, sv1;
     reg zreg;
     //Stage 2
     always @(posedge clk) begin
-        if (ir1 == `trap) begin end //TODO figure out what happens if it is a trap, and add correct value forwarding conditions
+        if (ir1 == `trap || (d0 == d1) || (s0 == d1)) begin end //TODO figure out what happens if it is a trap, and add correct value forwarding conditions
         else begin
             case (inst `OPCODE)
                     `i2p, `ii2pp, `p2i, `pp2ii : r[inst `RD] <= convert_ans; 
