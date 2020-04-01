@@ -107,6 +107,32 @@ module processor(halted, reset, clk);
                 halted = 1; end
         endcase
     end
+    
+    reg zreg;
+    //Stage 2
+    always @(posedge clk) begin
+        if (ir1 == `trap) begin end //TODO figure out what happens if it is a trap, and add correct value forwarding conditions
+        else begin
+            case (inst `OPCODE)
+                    `i2p, `ii2pp, `p2i, `pp2ii : r[inst `RD] <= convert_ans; 
+                    `jr : PC <= r[inst `RD];
+                    `ld : r[inst `RD] <= data[r[inst `RS]];
+                    `st : data[r[inst `RS]] <= r[inst `RD];
+                    `trap : halted = 1;
+                    default: if (alu_valid) begin
+                                r[inst `RD] <= alu_ans;
+                                $display("Ans: %h, Time: %d\n",alu_ans, $time);
+                            end
+                            else begin
+                                $display("Invalid Instruction ALU: %h\n",logic_unit.alu_op);
+                                halted = 1; 
+                            end
+            endcase
+            if (inst `TOPOP == `bz || inst `TOPOP = `bnz) begin
+                if (r[inst `RD] == 0) begin zreg <= 0; end
+                else begin zreg <= 1; end
+            end
+    end
 endmodule
 
 
