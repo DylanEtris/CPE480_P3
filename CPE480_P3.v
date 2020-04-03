@@ -143,7 +143,7 @@ endfunction
 //work on this
 function setsz;
 input `INST inst;
-setsz = ;
+setsz = 0;
 endfunction
 
 //work on this
