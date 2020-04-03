@@ -143,7 +143,7 @@ endfunction
 //work on this
 function setsz;
 input `INST inst;
-setsz = 0;
+setsz = ;
 endfunction
 
 //work on this
@@ -215,7 +215,7 @@ end
 //this needs fixing i think, gets stuck in infinite loop i think 
 //stage 1: register read
 always @(posedge clk) begin
-  $display("%H %d %d %H %H %d %d\n", iro, setsrd(ir1),usesrd(ir0), ir0`F_D, ir1`F_D, ir0`F_S, ir1`F_D);
+	$display("%H %d %d %H %H %d %d\n", ir0, setsrd(ir1),usesrd(ir0), ir0`F_D, ir1`F_D, ir0`F_S, ir1`F_D);
   if ((ir0 != `NOP) && setsrd(ir1) && ((usesrd(ir0) && (ir0 `F_D == ir1 `F_D)) ||
        (usesrs(ir0) && (ir0 `F_S == ir1 `F_D)))) begin
     // stall waiting for register value
@@ -238,8 +238,8 @@ if ((ir1 == `NOP) || ((ir1 == `OPBZ) && (zreg == 0)) || ((ir1 == `OPBNZ) && (zre
 	jump <= 0;
 end else begin
 	case(ir1 `F_OP)
-		`OPADDI: begin res = rd1 + rs1; end
-		`OPADDII: begin res = rd1 + rs1; res`HI8 = rd1`HI8 + rs1`HI8; end
+		`OPADDI: begin res <= rd1 + rs1; end
+		`OPADDII: begin res <= rd1 + rs1; res`HI8 = rd1`HI8 + rs1`HI8; end
 		`OPADDP: begin res <= rd1 + rs1; end
 		`OPADDPP: begin res <= rd1 + rs1; res`HI8 = rd1`HI8 + rs1`HI8; end
 		`OPMULI: begin res <= rd1 * rs1; end
@@ -269,6 +269,16 @@ end else begin
 			       res`HI8 <= (rs1`HI8 > 127 ? rd1`HI8 >> -rs1`HI8 : rd1`HI8 << rs1`HI8); end
 		`OPST:  begin dm[rs1] <= rd1; end // this may be wrong
 		`OPLD:  begin res = dm[rs1]; end
+		`OPBZ: begin
+			if (rd1 == 0) begin
+				jump <= 1;
+				target <= ir1 `F_C8;
+			end
+		`OPBNZ: begin
+			if (rd1 != 0) begin
+				jump <= 1;
+				target <= ir1 `F_C8;
+			end
 		//add jumps, branches somewhere?
 		default: halt <= 1;
 	endcase
