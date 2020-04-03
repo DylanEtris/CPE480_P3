@@ -135,7 +135,9 @@ endfunction
 //work on this
 function setspc;
 input `INST inst;
-setspc = 0;
+	setspc = ((inst `F_OP == `OPBZ) ||
+		  (inst `F_OP == `OPBNZ) ||
+		  (inst `F_OP == `OPJR));
 endfunction
 
 //work on this
