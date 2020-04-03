@@ -121,7 +121,6 @@ always @(reset) begin
 
 	//Load vmem files
 	$readmemh0(im);
-	$readmemh1(dm);
 end
 
 
@@ -213,11 +212,11 @@ end
 //this needs fixing i think, gets stuck in infinite loop i think 
 //stage 1: register read
 always @(posedge clk) begin
-  $display("%H %d %d %H %H %d %d\n", iro, setsrd(ir1),usesrd(ir0), ir0`F_D, ir1`F_D, ir0`F_S, ir1`F_D);
+  $display("ir0:%H setsrd(ir1):%d usesrd(ir0):%d ir0`F_D:%H ir1`F_D%H ir0`F_S:%d ir1`F%d\n", ir0, setsrd(ir1),usesrd(ir0), ir0`F_D, ir1`F_D, ir0`F_S, ir1`F_D);
   if ((ir0 != `NOP) && setsrd(ir1) && ((usesrd(ir0) && (ir0 `F_D == ir1 `F_D)) ||
        (usesrs(ir0) && (ir0 `F_S == ir1 `F_D)))) begin
     // stall waiting for register value
-    wait1 = 1;
+    wait1 = 0;
     ir1 <= `NOP;
   end else begin
     // all good, get operands (even if not needed)
