@@ -120,8 +120,8 @@ always @(reset) begin
 	jump = 0;
 
 	//Load vmem files
-	$readmemh0(im);
-	$readmemh1(dm);
+	//$readmemh0(im);
+	//readmemh1(dm);
 end
 
 
@@ -193,20 +193,13 @@ always @(posedge clk) begin
 	tpc = (jump ? target : pc);
 
 	if (wait1) begin
+		ir0 <= `NOP;
 		pc <= tpc;
 		$display("stuck in if(wait1)\n");
 		//wait
 	end else begin
 		//not blocked by stage 1
-		ir = im[tpc];
-
-		if (pendpc || (iscond(ir) && pendz)) begin
-			//waiting... pc doesnt change
-			ir0 <= `NOP;
-			pc <= tpc;
-		end else begin
-			ir0 <= ir;
-		end
+		ir0 = im[tpc];
 		pc <= tpc + 1;
 	end
 end
@@ -274,11 +267,13 @@ end else begin
 				jump <= 1;
 				target <= ir1 `F_C8;
 			end
+		end
 		`OPBNZ: begin
 			if (rd1 != 0) begin
 				jump <= 1;
 				target <= ir1 `F_C8;
 			end
+		end
 		//add jumps, branches somewhere?
 		default: halt <= 1;
 	endcase
