@@ -132,24 +132,26 @@ setsrd = ((inst `F_OP >= `OPCI8) && (inst `F_OP <= `OPCUP)) ||
 	 ((inst `F_OP >= `OPNOT) && (inst `F_OP <= `OPLD));
 endfunction
 
-
+//work on this
 function setspc;
 input `INST inst;
 setspc = 0;
 endfunction
 
+//work on this
 function setsz;
 input `INST inst;
 setsz = 0;
 endfunction
 
+//work on this
 function iscond;
 input `INST inst;
 iscond = 0;
 endfunction
 
 
-
+//work on this
 function usesrd;
 input `INST inst;
 usesrd = ((inst `F_OP == `OPADDI) ||
@@ -167,14 +169,17 @@ usesrd = ((inst `F_OP == `OPADDI) ||
           (inst `F_OP == `OPANYI));
 endfunction
 
+//work on this
 function usesrs;
 input `INST inst;
 usesrs = 0;
 endfunction
 
+//work on this
 // pending z update?
 assign pendz = (setsz(ir0) || setsz(ir1));
 
+//work on this
 // pending PC update?
 assign pendpc = (setspc(ir0) || setspc(ir1));
 
@@ -259,8 +264,10 @@ end else begin
 		default: halt <= 1;
 	endcase
 
+//work on this
 	if(setsz(ir1)) zreg <= (res == 0);
 
+//work on this
 	if (setsrd(ir1)) begin
 		if (ir1 `F_D == 15) begin
 			jump <= 1;
