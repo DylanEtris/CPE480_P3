@@ -97,7 +97,7 @@ reg `DATA rd0, rd1, rd2;
 reg `DATA rs0, rs1, rs2;
 reg `DATA res;
 reg jump;
-reg zreg;		// z flag
+wire zreg;		// z flag
 wire pendz;
 wire pendpc;
 reg wait1, wait2;
@@ -110,7 +110,7 @@ reg `DATA src;		// src value
 reg `DATA target;	// target for branch or jump
 reg `ADDR lc;		// addr of this instruction
 
-
+assign zreg = (res == 0);
 
 
 always @(reset) begin
@@ -121,6 +121,7 @@ always @(reset) begin
 
 	//Load vmem files
 	$readmemh0(im);
+	$readmemh1(dm);
 end
 
 
@@ -212,11 +213,11 @@ end
 //this needs fixing i think, gets stuck in infinite loop i think 
 //stage 1: register read
 always @(posedge clk) begin
-  $display("ir0:%H setsrd(ir1):%d usesrd(ir0):%d ir0`F_D:%H ir1`F_D%H ir0`F_S:%d ir1`F%d\n", ir0, setsrd(ir1),usesrd(ir0), ir0`F_D, ir1`F_D, ir0`F_S, ir1`F_D);
+  $display("%H %d %d %H %H %d %d\n", iro, setsrd(ir1),usesrd(ir0), ir0`F_D, ir1`F_D, ir0`F_S, ir1`F_D);
   if ((ir0 != `NOP) && setsrd(ir1) && ((usesrd(ir0) && (ir0 `F_D == ir1 `F_D)) ||
        (usesrs(ir0) && (ir0 `F_S == ir1 `F_D)))) begin
     // stall waiting for register value
-    wait1 = 0;
+    wait1 = 1;
     ir1 <= `NOP;
   end else begin
     // all good, get operands (even if not needed)
@@ -237,41 +238,38 @@ end else begin
 	case(ir1 `F_OP)
 		`OPADDI: begin res = rd1 + rs1; end
 		`OPADDII: begin res = rd1 + rs1; res`HI8 = rd1`HI8 + rs1`HI8; end
-		`OPADDP: begin res = rd1 + rs1; end
-		`OPADDPP: begin res = rd1 + rs1; res`HI8 = rd1`HI8 + rs1`HI8; end
-		`OPMULI: begin res = rd1 * rs1; end
-		`OPMULII: begin res = rd1 * rs1; res`HI8 = rd1`HI8 * rs1`HI8; end
-		`OPMULP: begin res = rd1 * rs1; end
-		`OPMULPP: begin res = rd1 * rs1; res`HI8 <= rd1`HI8 * rs1`HI8; end
-		`OPAND: begin res = rd1 & rs1; end
-		`OPOR: begin res = rd1 | rs1; end
-		`OPXOR: begin res = rd1 ^ rs1; end
-		`OPNOT: begin res = ~rd1; end
-		`OPANYI: begin res = (rd1 ? -1 : 0); end
-		`OPANYII: begin res `HI8 = (rd1 `HI8 ? -1 : 0); res `LO8 <= (rd1 `LO8 ? -1 : 0); end
-		`OPLD:  begin res = dm[rs1]; end
-		`OPSLTI: begin res = rd1 < rs1; end
-		`OPSLTII: begin res `HIGH8 = rd1 `HIGH8 < rs1 `HIGH8; rd1 `LOW8 <= rd1 `LOW8 < rs1 `LOW8; end
-		`OPI2P: begin res = rd1; end
-		`OPII2PP: begin res `HI8 = rd1 `HI8; rd1 `LO8 <= rd1 `LO8; end
-		`OPP2I: begin res = rd1; end
-		`OPPP2II: begin res `HI8 = rd1 `HI8; rd1 `LO8 <= rd1 `LO8; end
-		`OPINVP: begin res = (rd1 == 1 ? 1 : 0); end
-		`OPINVPP: begin res `HI8 = (rd1`HI8 == 1 ? 1 : 0); rd1`LO8 <= (rd1`LO8 == 1 ? 1 : 0); end
-		`OPCI8:	begin res = ir1`F_C8; if(ir1[11:11] == 1) res`HI8 = 255; else res`HI8 = 0; end
-		`OPCII: begin res = ir`F_C8; res`HI8 <= ir1`F_C8; end
-		`OPCUP: begin	res`HI8 <= ir1`F_C8; end
+		`OPADDP: begin res <= rd1 + rs1; end
+		`OPADDPP: begin res <= rd1 + rs1; res`HI8 = rd1`HI8 + rs1`HI8; end
+		`OPMULI: begin res <= rd1 * rs1; end
+		`OPMULII: begin res <= rd1 * rs1; res`HI8 = rd1`HI8 * rs1`HI8; end
+		`OPMULP: begin res <= rd1 * rs1; end
+		`OPMULPP: begin res <= rd1 * rs1; res`HI8 <= rd1`HI8 * rs1`HI8; end
+		`OPAND: begin res <= rd1 & rs1; end
+		`OPOR: begin res <= rd1 | rs1; end
+		`OPXOR: begin res <= rd1 ^ rs1; end
+		`OPNOT: begin res <= ~rd1; end
+		`OPANYI: begin res <= (rd1 ? -1 : 0); end
+		`OPANYII: begin res `HI8 <= (rd1 `HI8 ? -1 : 0); res `LO8 <= (rd1 `LO8 ? -1 : 0); end
+		`OPLD:  begin res <= dm[rs1]; end
+		`OPSLTI: begin res <= rd1 < rs1; end
+		`OPSLTII: begin res `HIGH8 <= rd1 `HIGH8 < rs1 `HIGH8; rd1 `LOW8 <= rd1 `LOW8 < rs1 `LOW8; end
+		`OPI2P: begin res <= rd1; end
+		`OPII2PP: begin res `HI8 <= rd1 `HI8; rd1 `LO8 <= rd1 `LO8; end
+		`OPP2I: begin res <= rd1; end
+		`OPPP2II: begin res `HI8 <= rd1 `HI8; rd1 `LO8 <= rd1 `LO8; end
+		`OPINVP: begin res <= (rd1 == 1 ? 1 : 0); end
+		`OPINVPP: begin res `HI8 <= (rd1`HI8 == 1 ? 1 : 0); rd1`LO8 <= (rd1`LO8 == 1 ? 1 : 0); end
+		`OPCI8:	begin res <= ir1`F_C8; if(ir1[11:11] == 1) res`HI8 = 255; else res`HI8 = 0; end
+		`OPCII: begin res <= ir`F_C8; res`HI8 <= ir1`F_C8; end
+		`OPCUP: begin res`HI8 <= ir1`F_C8; end
 		`OPSHI: begin res <= (rs1 > 32767 ? rd1 >> -rs1 : rd1 << rs1); end
-		`OPSHII: begin res`LO8 = (rs1`LO8 > 127 ? rd1`LO8 >> -rs1`LO8 : rd1`LO8 << rs1`LO8); 
-			       res`HI8 = (rs1`HI8 > 127 ? rd1`HI8 >> -rs1`HI8 : rd1`HI8 << rs1`HI8); end
-		`OPST:  begin dm[rs1] = rd1; end // this may be wrong
+		`OPSHII: begin res`LO8 <= (rs1`LO8 > 127 ? rd1`LO8 >> -rs1`LO8 : rd1`LO8 << rs1`LO8); 
+			       res`HI8 <= (rs1`HI8 > 127 ? rd1`HI8 >> -rs1`HI8 : rd1`HI8 << rs1`HI8); end
+		`OPST:  begin dm[rs1] <= rd1; end // this may be wrong
 		`OPLD:  begin res = dm[rs1]; end
 		//add jumps, branches somewhere?
 		default: halt <= 1;
 	endcase
-
-//work on this
-	if(setsz(ir1)) zreg <= (res == 0);
 
 //work on this
 	if (setsrd(ir1)) begin
