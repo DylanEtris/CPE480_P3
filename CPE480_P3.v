@@ -121,7 +121,6 @@ always @(reset) begin
 
 	//Load vmem files
 	$readmemh0(im);
-	$readmemh1(dm);
 end
 
 
@@ -143,13 +142,14 @@ endfunction
 //work on this
 function setsz;
 input `INST inst;
-setsz = 0;
+	setsz = ((inst `F_OP == `OPBZ) || (inst `F_OP == `OPBNZ));
 endfunction
+
 
 //work on this
 function iscond;
 input `INST inst;
-iscond = 0;
+	iscond = ((inst `F_OP == `OPBZ) || (inst `F_OP == `OPBNZ));
 endfunction
 
 
@@ -168,13 +168,42 @@ usesrd = ((inst `F_OP == `OPADDI) ||
           (inst `F_OP == `OPOR) ||
           (inst `F_OP == `OPXOR) ||
           (inst `F_OP == `OPNOT) ||
-          (inst `F_OP == `OPANYI));
+          (inst `F_OP == `OPANYI) ||
+          (inst `F_OP == `OPANYII) ||
+          (inst `F_OP == `OPI2P) ||
+          (inst `F_OP == `OPII2PP) ||
+          (inst `F_OP == `OPINVP) ||
+          (inst `F_OP == `OPINVPP) ||
+          (inst `F_OP == `OPNEGI) ||
+          (inst `F_OP == `OPNEGII) ||
+          (inst `F_OP == `OPP2I) ||
+          (inst `F_OP == `OPPP2II) ||
+          (inst `F_OP == `OPSHI) ||
+          (inst `F_OP == `OPSHII) ||
+          (inst `F_OP == `OPSLTI) ||
+          (inst `F_OP == `OPSLTII));
 endfunction
 
 //work on this
 function usesrs;
 input `INST inst;
-usesrs = 0;
+usesrs = ((inst `F_OP == `OPADDI) ||
+          (inst `F_OP == `OPADDII) ||
+          (inst `F_OP == `OPADDP) ||
+          (inst `F_OP == `OPADDPP) ||
+          (inst `F_OP == `OPMULI) ||
+          (inst `F_OP == `OPMULII) ||
+          (inst `F_OP == `OPMULP) ||
+          (inst `F_OP == `OPMULPP) ||
+          (inst `F_OP == `OPAND) ||
+          (inst `F_OP == `OPOR) ||
+          (inst `F_OP == `OPXOR) ||
+          (inst `F_OP == `OPST) ||
+          (inst `F_OP == `OPLD) ||
+          (inst `F_OP == `OPSHI) ||
+          (inst `F_OP == `OPSHII) ||
+          (inst `F_OP == `OPSLTI) ||
+          (inst `F_OP == `OPSLTII));
 endfunction
 
 //work on this
@@ -194,35 +223,40 @@ always @(posedge clk) begin
 
 	if (wait1) begin
 		pc <= tpc;
-		$display("stuck in if(wait1)\n");
+		$display("current pc: %d   in if(wait1)\n", pc);
 		//wait
 	end else begin
 		//not blocked by stage 1
+                $display("in else wait1\n");
 		ir = im[tpc];
 
 		if (pendpc || (iscond(ir) && pendz)) begin
 			//waiting... pc doesnt change
+                        $display("in if2 after wait1\n");
 			ir0 <= `NOP;
 			pc <= tpc;
 		end else begin
 			ir0 <= ir;
 		end
 		pc <= tpc + 1;
+                $display("current pc: %d", pc);
 	end
 end
 
 
-//this needs fixing i think, gets stuck in infinite loop i think 
+//this needs fixing i think, gets stuck in infinite loop i think
 //stage 1: register read
 always @(posedge clk) begin
-	$display("%H %d %d %H %H %d %d\n", ir0, setsrd(ir1),usesrd(ir0), ir0`F_D, ir1`F_D, ir0`F_S, ir1`F_D);
+        $display(" just inside stage 1 ::: ir0:%H ir1:%H setsrd(ir1):%d usesrd(ir0):%d ir0`F_D:%H ir1`F_D%H ir0`F_S:%d ir1`F%d\n", ir0, ir1, setsrd(ir1),usesrd(ir0), ir0`F_D, ir1`F_D, ir0`F_S, ir1`F_D);
   if ((ir0 != `NOP) && setsrd(ir1) && ((usesrd(ir0) && (ir0 `F_D == ir1 `F_D)) ||
        (usesrs(ir0) && (ir0 `F_S == ir1 `F_D)))) begin
     // stall waiting for register value
+    $display("in the if stage 1\n");
     wait1 = 1;
     ir1 <= `NOP;
   end else begin
     // all good, get operands (even if not needed)
+    $display("in the else stage 1\n");
     wait1 = 0;
     rd1 <= r[ir0 `F_D];
     rs1 <= r[ir0 `F_S];
@@ -233,10 +267,15 @@ end
 
 //stage 2: ALU, data memory access, reg write
 always @(posedge clk) begin
+$display("ir0: %H  ir1: %H\n",ir0,ir1);
 if ((ir1 == `NOP) || ((ir1 == `OPBZ) && (zreg == 0)) || ((ir1 == `OPBNZ) && (zreg == 1))) begin
+    $display("ir0: %H  ir1: %H\n",ir0,ir1);
+    $display("in the if stage 2\n");
 	// condition says nothing happens
 	jump <= 0;
 end else begin
+    $display("ir0: %H  ir1: %H\n",ir0,ir1);
+    $display("in the else stage 2\n");
 	case(ir1 `F_OP)
 		`OPADDI: begin res <= rd1 + rs1; end
 		`OPADDII: begin res <= rd1 + rs1; res`HI8 = rd1`HI8 + rs1`HI8; end
@@ -265,34 +304,43 @@ end else begin
 		`OPCII: begin res <= ir`F_C8; res`HI8 <= ir1`F_C8; end
 		`OPCUP: begin res`HI8 <= ir1`F_C8; end
 		`OPSHI: begin res <= (rs1 > 32767 ? rd1 >> -rs1 : rd1 << rs1); end
-		`OPSHII: begin res`LO8 <= (rs1`LO8 > 127 ? rd1`LO8 >> -rs1`LO8 : rd1`LO8 << rs1`LO8); 
+		`OPSHII: begin res`LO8 <= (rs1`LO8 > 127 ? rd1`LO8 >> -rs1`LO8 : rd1`LO8 << rs1`LO8);
 			       res`HI8 <= (rs1`HI8 > 127 ? rd1`HI8 >> -rs1`HI8 : rd1`HI8 << rs1`HI8); end
+
 		`OPST:  begin dm[rs1] <= rd1; end // this may be wrong
 		`OPLD:  begin res = dm[rs1]; end
-		`OPBZ: begin
-			if (rd1 == 0) begin
-				jump <= 1;
-				target <= ir1 `F_C8;
-			end
-		`OPBNZ: begin
-			if (rd1 != 0) begin
-				jump <= 1;
-				target <= ir1 `F_C8;
-			end
-		//add jumps, branches somewhere?
-		default: halt <= 1;
+                `OPJR:  res = rd1;
+		`OPBZ: begin if (rd1 == 0) res = ir1 `F_C8; end
+		`OPBNZ: begin if (rd1 != 0) res = ir1 `F_C8; end
+    `OPTRAP: halt <= 1;
+    default: halt <= 0;
+		//default: begin $display("defaulted ir0=%H ir1=%H\n", ir0,ir1); #10 halt <= 1; end
 	endcase
 
 //work on this
 	if (setsrd(ir1)) begin
-		if (ir1 `F_D == 15) begin
-			jump <= 1;
-			target <= res;
+                $display("in the if1 after stage 2\n");
+		if ((ir1 `F_D == `OPJR) || (setspc(ir1)&&setsz(ir1))) begin
+                $display("in the if2 after stage 2\n");
+                    if(ir1 `F_D == `OPJR) begin
+                        jump <= 1;
+                        target <= res;
+                    end else if((ir1 `F_D == `OPBZ) && rd1==0 ) begin
+                        jump <= 1;
+                        target <= res;
+                    end else if((ir1 `F_D == `OPBNZ) && rd1!=0) begin
+                        jump <= 1;
+                        target <= res;
+                    end else
+                        jump <= 0;
 		end else begin
+                $display("in the else2 after stage 2\n");
 			r[ir1 `F_D] <= res;
 			jump <= 0;
 		end
-	end else jump <= 0;
+	end else begin
+                 $display("in the else1 after stage 2\n");
+                 jump <= 0; end
 	end
 	end
 endmodule
@@ -305,13 +353,14 @@ reg clk = 0;
 wire halted;
 processor PE(halted, reset, clk);
 initial begin
-  $dumpfile;
-  $dumpvars(0, PE);
+$dumpfile;
+$dumpvars(0, PE);
   #10 reset = 1;
+  #10 clk = 1;
   #10 reset = 0;
   while (!halted) begin
-    #10 clk = 1;
     #10 clk = 0;
+    #10 clk = 1;
   end
   $finish;
 end
