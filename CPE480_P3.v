@@ -266,6 +266,7 @@ always @(posedge clk) begin
 			default: halt <= 1;
 		endcase
 	end
+end
 endmodule
 
 
