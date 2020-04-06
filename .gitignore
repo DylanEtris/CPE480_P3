@@ -1,0 +1,8 @@
+test
+*.vcd
+*.o
+*.aux
+*.dvi
+*.log
+*.out
+*.xcp
