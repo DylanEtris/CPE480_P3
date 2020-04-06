@@ -89,7 +89,8 @@ input reset, clk;
 reg `DATA r `REGS;	// register file
 reg `DATA dm `SIZE;	// data memory
 reg `INST im `SIZE;	// instruction memory
-reg `ADDR tpc, pc;
+reg `ADDR pc;
+wire `ADDR tpc;
 reg `INST ir;
 reg `HALF op0, op1;
 reg `NIB d0, d1;
@@ -113,7 +114,7 @@ reg `ADDR lc;		// addr of this instruction
 	assign zflag = (dv1 == 0);
 	assign pendz = (op0 == `OPTRAP && (op1 [7:4] === 4'hf || op1 [7:4] == 4'he || op1 == `OPJR));
 	assign wait1 = (d0 == d1 || s0 == d1 || s0 == s1 || (op0 == `OPTRAP && (op1 == `OPBZ || op1 == `OPBNZ)));
-
+	assign tpc = (jump ? target : pc);
 
 always @(reset) begin
 	halt <= 0;
@@ -173,8 +174,6 @@ endfunction
 
 //stage 0: instruction fetch
 always @(posedge clk) begin
-
-	tpc = (jump ? target : pc);
 	if (wait1 || pendz) begin
 		pc <= tpc;
 		//wait
@@ -250,13 +249,13 @@ always @(posedge clk) begin
 			`OPBZ: begin
 				if (zflag == 1) begin
 					jump <= 1;
-					target <= const1;
+					target <= const1 + pc - 2;
 				end
 			end
 			`OPBNZ: begin
 				if (zflag == 0) begin
 					jump <= 1;
-					target <= const1;
+					target <= const1 + pc - 2;
 				end
 			end
 			`OPJR: begin
