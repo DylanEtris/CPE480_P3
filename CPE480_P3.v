@@ -71,13 +71,17 @@
 `define OPTRAP	8'h00
 
 `define OPCI8	8'hbz
-`define OPCII	8'hc?
+`define OPCII	8'hcz
 `define OPCUP	8'hdz
 
 `define OPBZ	8'hez
 `define OPBNZ	8'hfz
 
 `define NOP 	8'h02
+
+// forwarding control signal names
+`define FSOURCE 8'h82
+`define FDEST   8'h81
 
 
 
@@ -91,11 +95,13 @@ reg `DATA dm `SIZE;	// data memory
 reg `INST im `SIZE;	// instruction memory
 reg `ADDR tpc, pc;
 reg `INST ir;
-reg `HALF op0, op1;
-reg `DATA d0, d1;
+reg `HALF op0, op1, op2; // opcode registers
+reg `DATA d0, d1, d2; // destination registers
+reg `DATA s0, s1, s2; // source registers
 reg `DATA dv1, dv2;
-reg `DATA s0, s1;
 reg `DATA sv1;
+reg `DATA fd0, fd1, fs0, fs1; // forwarding registers
+reg `STATE fwdcntrl;
 reg `HALF const0, const1;
 reg jump;
 wire zflag;		// z flag
@@ -111,8 +117,8 @@ reg `DATA src;		// src value
 reg `DATA target;	// target for branch or jump
 reg `ADDR lc;		// addr of this instruction
 
-	assign zflag = (dv1 == 0);
-	assign pendz = (op0 == `OPTRAP && (op1 == `OPBNZ || op1 == `OPBZ || op1 == `OPJR));
+assign zflag = (dv1 == 0);
+assign pendz = (op0 == `OPTRAP && (op1 == `OPBNZ || op1 == `OPBZ || op1 == `OPJR));
 
 
 always @(reset) begin
@@ -122,7 +128,7 @@ always @(reset) begin
 	jump <= 0;
 
 	//Load vmem files
-	$readmemh0(im);
+	$readmemh("vmem0.text", im);
 	//readmemh1(dm);
 end
 
@@ -154,23 +160,22 @@ input `INST inst;
 iscond = 0;
 endfunction
 
-
 //work on this
 function usesrd;
 input `F_OP op;
 	usesrd = ((op == `OPADDI) ||
-		  (op == `OPADDII) ||
-		  (op == `OPADDP) ||
-		  (op == `OPADDPP) ||
-		  (op == `OPMULI) ||
-		  (op == `OPMULII) ||
-		  (op == `OPMULP) ||
-		  (op == `OPMULPP) ||
-		  (op == `OPAND) ||
-		  (op == `OPOR) ||
-		  (op == `OPXOR) ||
-		  (op == `OPNOT) ||
-		  (op == `OPANYI));
+		(op == `OPADDII) ||
+		(op == `OPADDP) ||
+		(op == `OPADDPP) ||
+		(op == `OPMULI) ||
+		(op == `OPMULII) ||
+		(op == `OPMULP) ||
+		(op == `OPMULPP) ||
+		(op == `OPAND) ||
+		(op == `OPOR) ||
+		(op == `OPXOR) ||
+		(op == `OPNOT) ||
+		(op == `OPANYI));
 endfunction
 
 //work on this
@@ -181,7 +186,6 @@ endfunction
 
 //stage 0: instruction fetch
 always @(posedge clk) begin
-
 	tpc = (jump ? target : pc);
 	if (wait1) begin
 		op0 <= `NOP;
@@ -195,31 +199,35 @@ always @(posedge clk) begin
 		const0 <= im[tpc] `F_C8;
 		pc <= tpc + 1;
 	end
+	$display("pc: %d, im: %H", tpc, im[tpc]);
 end
 
 
 //stage 1: register read
 always @(posedge clk) begin
-	
-	const1 <= const0;
-    	dv1 <= r[d0];
-	d1 <= d0;
-    	sv1 <= r[s0];
-    	op1 <= op0;
 	if ((d0 == d1) || (s0 == d1) || (s0 == s1)) begin
-    		// stall waiting for register value
-    		wait1 <= 1;
-  	end else begin
-    		// all good, get operands (even if not needed)	
+		// stall waiting for register value
+		wait1 <= 1;
+		$display("Stage 1 waiting");
+		$display("d0 == d1: %d s0 == d1: %d s0 == s1: %d", d0 == d1, s0 == d1, s0 == s1);
+	end else begin
+		// all good, get operands (even if not needed)	
 		wait1 <= 0;
-  end
-
+	end
+	const1 <= const0;
+	dv1 <= r[d0];
+	d1 <= d0;
+	sv1 <= r[s0];
+	op1 <= op0;
+	$display("op0: %H, op1: %H", op0, op1);
 end
 
 //stage 2: ALU, data memory access, reg write
 always @(posedge clk) begin
+	
 	if ((op1 == `NOP)) begin
 		// condition says nothing happens
+		$display("op1 %H, zflag %D", op1, zflag);
 		jump <= 0;
 	end else begin
 		casez (op1)
@@ -273,6 +281,8 @@ always @(posedge clk) begin
 			default: halt <= 1;
 		endcase
 
+		$display("RES: %H", r[d1]);
+
 		if (setsrd(op1)) begin
 			if (d1 == 15) begin
 				jump <= 1;
@@ -281,10 +291,11 @@ always @(posedge clk) begin
 				r[d1] <= dv1;
 				jump <= 0;
 			end
-		end else
+		end else begin
 			jump <= 0;
 		end
 	end
+end
 endmodule
 
 
@@ -295,7 +306,7 @@ reg clk = 0;
 wire halted;
 processor PE(halted, reset, clk);
 initial begin
-  $dumpfile;
+  $dumpfile("output");
   $dumpvars(0, PE);
   #10 reset = 1;
   #10 reset = 0;
