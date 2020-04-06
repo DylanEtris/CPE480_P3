@@ -101,15 +101,9 @@ reg `HALF const0, const1;
 reg jump;
 wire zflag;		// z flag
 wire pendz;
-wire pendpc;
 wire wait1;
 
-reg `NIB head;		// current header (1st half of opcode)
-reg `REGNAME d;	// destination register name
-reg `REGNAME s; //source register name
-reg `DATA src;		// src value
 reg `DATA target;	// target for branch or jump
-reg `ADDR lc;		// addr of this instruction
 
 	assign zflag = (dv1 == 0);
 	assign pendz = (op0 == `OPTRAP && (op1 [7:4] === 4'hf || op1 [7:4] == 4'he || op1 == `OPJR));
@@ -127,51 +121,6 @@ always @(reset) begin
 	//readmemh1(dm);
 end
 
-
-function setsrd;
-input `HALF op;
-	setsrd = ((op >= `OPCI8) && (op <= `OPCUP)) ||
-		((op >= `OPAND) && (op <= `OPSLTII)) ||
-		((op >= `OPNOT) && (op <= `OPLD));
-endfunction
-
-//work on this
-function setsz;
-input `INST inst;
-setsz = 0;
-endfunction
-
-//work on this
-function iscond;
-input `INST inst;
-iscond = 0;
-endfunction
-
-
-//work on this
-function usesrd;
-input `F_OP op;
-	usesrd = ((op == `OPADDI) ||
-		  (op == `OPADDII) ||
-		  (op == `OPADDP) ||
-		  (op == `OPADDPP) ||
-		  (op == `OPMULI) ||
-		  (op == `OPMULII) ||
-		  (op == `OPMULP) ||
-		  (op == `OPMULPP) ||
-		  (op == `OPAND) ||
-		  (op == `OPOR) ||
-		  (op == `OPXOR) ||
-		  (op == `OPNOT) ||
-		  (op == `OPANYI));
-endfunction
-
-//work on this
-function usesrs;
-input `INST inst;
-usesrs = 0;
-endfunction
-
 //stage 0: instruction fetch
 always @(posedge clk) begin
 	if (wait1 || pendz) begin
@@ -187,11 +136,9 @@ always @(posedge clk) begin
 	end
 end
 
-
 //stage 1: register read
 always @(posedge clk) begin
-	
-	if (wait1 || pendz) begin
+	if (wait1 || pendz || jump) begin
     		// stall waiting for register value
 		op1 <= `NOP;
 		dv1 <= r[d0];
@@ -215,14 +162,10 @@ always @(posedge clk) begin
 		jump <= 0;
 	end else begin
 		casez (op1)
-			`OPADDI: begin r[d1] <= dv1 + sv1; end
-			`OPADDII: begin r[d1] <= sv1 + sv1; r[d1] `HI8 = sv1 `HI8 + sv1`HI8; end
-			`OPADDP: begin r[d1] <= dv1 + sv1; end
-			`OPADDPP: begin r[d1] <= dv1 + sv1; r[d1]`HI8 = dv1 `HI8 + sv1`HI8; end
-			`OPMULI: begin r[d1] <= dv1 * sv1; end
-			`OPMULII: begin r[d1] <= dv1 * sv1; r[d1]`HI8 = dv1 `HI8 * sv1`HI8; end
-			`OPMULP: begin r[d1] <= dv1 * sv1; end
-			`OPMULPP: begin r[d1] <= dv1 * sv1; r[d1] `HI8 <= dv1 `HI8 * sv1`HI8; end
+			`OPADDI, `OPADDP: begin r[d1] <= dv1 + sv1; end
+			`OPADDII, `OPADDPP: begin r[d1] `HI8 <= dv1 `HI8 + sv1 `HI8; r[d1] `LO8 = dv1 `LO8 + sv1 `LO8; end
+			`OPMULI, `OPMULP: begin r[d1] <= dv1 * sv1; end
+			`OPMULII, `OPMULPP: begin r[d1] <= dv1 * sv1; r[d1]`HI8 = dv1 `HI8 * sv1`HI8; end
 			`OPAND: begin r[d1] <= dv1 & sv1; end
 			`OPOR: begin r[d1] <= dv1 | sv1; end
 			`OPXOR: begin r[d1] <= dv1 ^ sv1; end
@@ -232,12 +175,11 @@ always @(posedge clk) begin
 			`OPLD:  begin r[d1] <= dm[sv1]; end
 			`OPSLTI: begin r[d1] <= dv1 < sv1; end
 			`OPSLTII: begin r[d1] `HIGH8 <= dv1 `HIGH8 < sv1 `HIGH8; r[d1] `LOW8 <= dv1 `LOW8 < sv1 `LOW8; end
-			`OPI2P: begin r[d1] <= dv1; end
-			`OPII2PP: begin r[d1] `HI8 <= dv1 `HI8; r[d1] `LO8 <= dv1 `LO8; end
-			`OPP2I: begin r[d1] <= dv1; end
-			`OPPP2II: begin r[d1] `HI8 <= dv1 `HI8; r[d1] `LO8 <= dv1 `LO8; end
+			`OPI2P, `OPII2PP, `OPP2I, `OPPP2II: begin r[d1] <= dv1; end
 			`OPINVP: begin r[d1] <= (dv1 == 1 ? 1 : 0); end
 			`OPINVPP: begin r[d1] `HI8 <= (dv1 `HI8 == 1 ? 1 : 0); r[d1] `LO8 <= (dv1 `LO8 == 1 ? 1 : 0); end
+			`OPNEGI: begin r[d1] <= -dv1; end
+			`OPNEGII: begin r[d1] `HI8 <= -dv1 `HI8; r[d1] `LO8 <= -dv1 `LO8; end
 			`OPCI8:	begin r[d1] <=  ((const1 & 8'h80) ? 16'hff00 : 0) | (const1 & 8'hff); end
 			`OPCII: begin r[d1] `HI8 <= const1; r[d1] `LO8 <= const1; end
 			`OPCUP: begin r[d1] `HI8 <= const1; end
