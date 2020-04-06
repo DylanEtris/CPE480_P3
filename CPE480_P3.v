@@ -93,7 +93,7 @@ reg `ADDR tpc, pc;
 reg `INST ir;
 reg `HALF op0, op1;
 reg `DATA d0, d1;
-reg `DATA dv1;
+reg `DATA dv1, dv2;
 reg `DATA s0, s1;
 reg `DATA sv1;
 reg `HALF const0, const1;
@@ -112,13 +112,14 @@ reg `DATA target;	// target for branch or jump
 reg `ADDR lc;		// addr of this instruction
 
 	assign zflag = (dv1 == 0);
+	assign pendz = (op0 == `OPTRAP && (op1 == `OPBNZ || op1 == `OPBZ || op1 == `OPJR));
 
 
 always @(reset) begin
 	halt <= 0;
 	pc <= 0;
 	op0 <= `NOP; op1 <= `NOP;
-	jump = 0;
+	jump <= 0;
 
 	//Load vmem files
 	$readmemh0(im);
@@ -127,7 +128,7 @@ end
 
 
 function setsrd;
-input `F_OP op;
+input `HALF op;
 	setsrd = ((op >= `OPCI8) && (op <= `OPCUP)) ||
 		((op >= `OPAND) && (op <= `OPSLTII)) ||
 		((op >= `OPNOT) && (op <= `OPLD));
@@ -182,78 +183,93 @@ endfunction
 always @(posedge clk) begin
 
 	tpc = (jump ? target : pc);
-	op0 <= im[tpc] `F_OP;
-	d0 <= im[tpc] `F_D;
-	s0 <= im[tpc] `F_S;
-	const0 <= im[tpc] `F_C8;
 	if (wait1) begin
 		op0 <= `NOP;
 		pc <= tpc;
 		//wait
 	end else begin
 		//not blocked by stage 1
+		op0 <= im[tpc] `F_OP;
+		d0 <= im[tpc] `F_D;
+		s0 <= im[tpc] `F_S;
+		const0 <= im[tpc] `F_C8;
 		pc <= tpc + 1;
 	end
 end
 
 
-//this needs fixing i think, gets stuck in infinite loop i think 
 //stage 1: register read
 always @(posedge clk) begin
+	
+	const1 <= const0;
+    	dv1 <= r[d0];
+	d1 <= d0;
+    	sv1 <= r[s0];
+    	op1 <= op0;
 	if ((d0 == d1) || (s0 == d1) || (s0 == s1)) begin
     		// stall waiting for register value
     		wait1 <= 1;
-		op1 <= `NOP;
   	end else begin
-    		// all good, get operands (even if not needed)
-    		wait1 = 0;
-		const1 <= const0;
-    		dv1 <= r[d0];
-		d1 <= d0;
-    		sv1 <= r[s0];
-    		op1 <= op0;
+    		// all good, get operands (even if not needed)	
+		wait1 <= 0;
   end
 
 end
 
 //stage 2: ALU, data memory access, reg write
 always @(posedge clk) begin
-	if ((op1 == `NOP) || ((op1 == `OPBZ) && (zflag == 0)) || ((op1 == `OPBNZ) && (zflag == 1))) begin
+	if ((op1 == `NOP)) begin
 		// condition says nothing happens
 		jump <= 0;
 	end else begin
 		casez (op1)
-			`OPADDI: begin dv1 <= dv1 + sv1; end
-			`OPADDII: begin dv1 <= sv1 + sv1; dv1 `HI8 = sv1 `HI8 + sv1`HI8; end
-			`OPADDP: begin dv1 <= dv1 + sv1; end
-			`OPADDPP: begin dv1 <= dv1 + sv1; dv1`HI8 = dv1`HI8 + sv1`HI8; end
-			`OPMULI: begin dv1 <= dv1 * sv1; end
-			`OPMULII: begin dv1 <= dv1 * sv1; dv1`HI8 = dv1`HI8 * sv1`HI8; end
-			`OPMULP: begin dv1 <= dv1 * sv1; end
-			`OPMULPP: begin dv1 <= dv1 * sv1; dv1 `HI8 <= dv1`HI8 * sv1`HI8; end
-			`OPAND: begin dv1 <= dv1 & sv1; end
-			`OPOR: begin dv1 <= dv1 | sv1; end
-			`OPXOR: begin dv1 <= dv1 ^ sv1; end
-			`OPNOT: begin dv1 <= ~dv1; end
-			`OPANYI: begin dv1 <= (dv1 ? -1 : 0); end
-			`OPANYII: begin dv1 `HI8 <= (dv1 `HI8 ? -1 : 0); dv1 `LO8 <= (dv1 `LO8 ? -1 : 0); end
-			`OPLD:  begin dv1 <= dm[sv1]; end
-			`OPSLTI: begin dv1 <= dv1 < sv1; end
-			`OPSLTII: begin dv1 `HIGH8 <= dv1 `HIGH8 < sv1 `HIGH8; dv1 `LOW8 <= dv1 `LOW8 < sv1 `LOW8; end
-			`OPI2P: begin dv1 <= dv1; end
-			`OPII2PP: begin dv1 `HI8 <= dv1 `HI8; dv1 `LO8 <= dv1 `LO8; end
-			`OPP2I: begin dv1 <= dv1; end
-			`OPPP2II: begin dv1 `HI8 <= dv1 `HI8; dv1 `LO8 <= dv1 `LO8; end
-			`OPINVP: begin dv1 <= (dv1 == 1 ? 1 : 0); end
-			`OPINVPP: begin dv1 `HI8 <= (dv1`HI8 == 1 ? 1 : 0); dv1`LO8 <= (dv1`LO8 == 1 ? 1 : 0); end
-			`OPCI8:	begin dv1 <=  ((const1 & 8'h80) ? 16'hff00 : 0) | (const1 & 8'hff); end
-			`OPCII: begin dv1 `HI8 <= const1; dv1 `LO8 <= const1; end
-			`OPCUP: begin dv1`HI8 <= const1; end
-			`OPSHI: begin dv1 <= (sv1 > 32767 ? dv1 >> -sv1 : dv1 << sv1); end
-			`OPSHII: begin dv1`LO8 <= (sv1`LO8 > 127 ? dv1`LO8 >> -sv1`LO8 : dv1`LO8 << sv1`LO8); 
-				dv1`HI8 <= (sv1`HI8 > 127 ? dv1`HI8 >> -sv1`HI8 : dv1`HI8 << sv1`HI8); end
+			`OPADDI: begin r[d1] <= dv1 + sv1; end
+			`OPADDII: begin r[d1] <= sv1 + sv1; r[d1] `HI8 = sv1 `HI8 + sv1`HI8; end
+			`OPADDP: begin r[d1] <= dv1 + sv1; end
+			`OPADDPP: begin r[d1] <= dv1 + sv1; r[d1]`HI8 = dv1 `HI8 + sv1`HI8; end
+			`OPMULI: begin r[d1] <= dv1 * sv1; end
+			`OPMULII: begin r[d1] <= dv1 * sv1; r[d1]`HI8 = dv1 `HI8 * sv1`HI8; end
+			`OPMULP: begin r[d1] <= dv1 * sv1; end
+			`OPMULPP: begin r[d1] <= dv1 * sv1; r[d1] `HI8 <= dv1 `HI8 * sv1`HI8; end
+			`OPAND: begin r[d1] <= dv1 & sv1; end
+			`OPOR: begin r[d1] <= dv1 | sv1; end
+			`OPXOR: begin r[d1] <= dv1 ^ sv1; end
+			`OPNOT: begin r[d1] <= ~dv1; end
+			`OPANYI: begin r[d1] <= (dv1 ? -1 : 0); end
+			`OPANYII: begin r[d1] `HI8 <= (dv1 `HI8 ? -1 : 0); r[d1] `LO8 <= (dv1 `LO8 ? -1 : 0); end
+			`OPLD:  begin r[d1] <= dm[sv1]; end
+			`OPSLTI: begin r[d1] <= dv1 < sv1; end
+			`OPSLTII: begin r[d1] `HIGH8 <= dv1 `HIGH8 < sv1 `HIGH8; r[d1] `LOW8 <= dv1 `LOW8 < sv1 `LOW8; end
+			`OPI2P: begin r[d1] <= dv1; end
+			`OPII2PP: begin r[d1] `HI8 <= dv1 `HI8; r[d1] `LO8 <= dv1 `LO8; end
+			`OPP2I: begin r[d1] <= dv1; end
+			`OPPP2II: begin r[d1] `HI8 <= dv1 `HI8; r[d1] `LO8 <= dv1 `LO8; end
+			`OPINVP: begin r[d1] <= (dv1 == 1 ? 1 : 0); end
+			`OPINVPP: begin r[d1] `HI8 <= (dv1 `HI8 == 1 ? 1 : 0); r[d1] `LO8 <= (dv1 `LO8 == 1 ? 1 : 0); end
+			`OPCI8:	begin r[d1] <=  ((const1 & 8'h80) ? 16'hff00 : 0) | (const1 & 8'hff); end
+			`OPCII: begin r[d1] `HI8 <= const1; r[d1] `LO8 <= const1; end
+			`OPCUP: begin r[d1] `HI8 <= const1; end
+			`OPSHI: begin r[d1] <= (sv1 > 32767 ? dv1 >> -sv1 : dv1 << sv1); end
+			`OPSHII: begin r[d1] `LO8 <= (sv1`LO8 > 127 ? dv1 `LO8 >> -sv1`LO8 : dv1 `LO8 << sv1`LO8); 
+				r[d1] `HI8 <= (sv1`HI8 > 127 ? dv1 `HI8 >> -sv1`HI8 : dv1 `HI8 << sv1`HI8); end
 			`OPST:  begin dm[sv1] <= dv1; end // this may be wrong
-			`OPLD:  begin dv1 = dm[sv1]; end
+			`OPLD:  begin r[d1] = dm[sv1]; end
+			`OPBZ: begin
+				if (zflag == 1) begin
+					jump <= 1;
+					target <= const1;
+				end
+			end
+			`OPBNZ: begin
+				if (zflag == 0) begin
+					jump <= 1;
+					target <= const1;
+				end
+			end
+			`OPJR: begin
+				jump <= 1;
+				target <= dv1;
+			end
 			default: halt <= 1;
 		endcase
 
