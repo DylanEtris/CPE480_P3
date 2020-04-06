@@ -265,18 +265,6 @@ always @(posedge clk) begin
 			end
 			default: halt <= 1;
 		endcase
-
-		if (setsrd(op1)) begin
-			if (d1 == 15) begin
-				jump <= 1;
-				target <= dv1;
-			end else begin
-				r[d1] <= dv1;
-				jump <= 0;
-			end
-		end else
-			jump <= 0;
-		end
 	end
 endmodule
 
