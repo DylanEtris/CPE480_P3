@@ -92,17 +92,16 @@ reg `INST im `SIZE;	// instruction memory
 reg `ADDR tpc, pc;
 reg `INST ir;
 reg `HALF op0, op1;
-reg `DATA d0, d1;
+reg `NIB d0, d1;
 reg `DATA dv1, dv2;
-reg `DATA s0, s1;
+reg `NIB s0, s1;
 reg `DATA sv1;
 reg `HALF const0, const1;
 reg jump;
 wire zflag;		// z flag
 wire pendz;
 wire pendpc;
-reg wait1, wait2;
-reg `STATE op;
+wire wait1;
 
 reg `NIB head;		// current header (1st half of opcode)
 reg `REGNAME d;	// destination register name
@@ -112,7 +111,8 @@ reg `DATA target;	// target for branch or jump
 reg `ADDR lc;		// addr of this instruction
 
 	assign zflag = (dv1 == 0);
-	assign pendz = (op0 == `OPTRAP && (op1 == `OPBNZ || op1 == `OPBZ || op1 == `OPJR));
+	assign pendz = (op0 == `OPTRAP && (op1 [7:4] === 4'hf || op1 [7:4] == 4'he || op1 == `OPJR));
+	assign wait1 = (d0 == d1 || s0 == d1 || s0 == s1 || (op0 == `OPTRAP && (op1 == `OPBZ || op1 == `OPBNZ)));
 
 
 always @(reset) begin
@@ -132,14 +132,6 @@ input `HALF op;
 	setsrd = ((op >= `OPCI8) && (op <= `OPCUP)) ||
 		((op >= `OPAND) && (op <= `OPSLTII)) ||
 		((op >= `OPNOT) && (op <= `OPLD));
-endfunction
-
-//work on this
-function setspc;
-input `INST inst;
-	setspc = ((op == `OPBZ) ||
-		  (op == `OPBNZ) ||
-		  (op == `OPJR));
 endfunction
 
 //work on this
@@ -183,8 +175,7 @@ endfunction
 always @(posedge clk) begin
 
 	tpc = (jump ? target : pc);
-	if (wait1) begin
-		op0 <= `NOP;
+	if (wait1 || pendz) begin
 		pc <= tpc;
 		//wait
 	end else begin
@@ -201,17 +192,19 @@ end
 //stage 1: register read
 always @(posedge clk) begin
 	
-	const1 <= const0;
-    	dv1 <= r[d0];
-	d1 <= d0;
-    	sv1 <= r[s0];
-    	op1 <= op0;
-	if ((d0 == d1) || (s0 == d1) || (s0 == s1)) begin
+	if (wait1 || pendz) begin
     		// stall waiting for register value
-    		wait1 <= 1;
+		op1 <= `NOP;
+		dv1 <= r[d0];
+		d1 <= 4'bz;
+    		sv1 <= r[s0];
   	end else begin
-    		// all good, get operands (even if not needed)	
-		wait1 <= 0;
+    		// all good, get operands (even if not needed)
+		const1 <= const0;
+    		dv1 <= r[d0];
+		d1 <= d0;
+    		sv1 <= r[s0];
+    		op1 <= op0;
   end
 
 end
