@@ -118,7 +118,11 @@ always @(reset) begin
 	ir0 = `NOP;
 	ir1 = `NOP;
 	jump = 0;
-	$readmemh("vmem0.text", im);
+	// use the following with dollars to initialize
+	//readmemh0(r); // register file
+	//readmemh1(d); // data memory
+	//readmemh2(i); // instruction memory
+	$readmemh0(im);
 end
 
 
@@ -350,7 +354,7 @@ reg clk = 0;
 wire halted;
 processor PE(halted, reset, clk);
 initial begin
-$dumpfile("output");
+$dumpfile;
 $dumpvars(0, PE);
 	#10 reset = 1;
 	#10 clk = 1;
